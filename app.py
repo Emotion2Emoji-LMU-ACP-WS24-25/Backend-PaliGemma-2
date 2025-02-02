@@ -23,6 +23,9 @@ emotion_analysis_model = PaliGemmaForConditionalGeneration.from_pretrained(EMOTI
 emotion_analysis_processor = PaliGemmaProcessor.from_pretrained(MODEL_PATH2, local_files_only=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+model.to(device)
+emotion_analysis_model.to(device)
+
 # Initialize MongoDB client and database
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
@@ -95,13 +98,12 @@ def analyze_images():
             front_image = Image.open(frontImagePath)
             back_image = Image.open(backImagePath)
 
-            prompts = [ '<image><bos> describe en\n',
+            prompts = [ '<image><bos> answer en. Describe his facial attributes with high precision. Focus on unique details, including skin texture, eye shape, eyebrow density, facial asymmetry, wrinkles, scars, birthmarks, and any defining features. Also, specify gender, skin color, hair color, and clothing.',
                         '<image><bos> caption en\n',
             ]
 
             images = [front_image, back_image]
 
-            model.to(device)
             model_inputs = processor(text=prompts, images=images, padding=True, return_tensors="pt").to(torch.bfloat16).to(device)
             input_len = model_inputs["input_ids"].shape[-1]
 
@@ -113,7 +115,6 @@ def analyze_images():
             front_image_description = decoded_texts[0]
             back_image_description = decoded_texts[1]
 
-            emotion_analysis_model.to(device)
             input_text = "Answer en What is the emotion of the main person in the image? choose from: ‘neutral’, \t ‘happy’, \t ‘sad’ \t, ‘surprise’ \t ‘fear’ \t, ‘disgust’,\t ‘angry’ \n"
             inputs = emotion_analysis_processor(text=input_text, images=front_image, padding="longest", do_convert_rgb=True, return_tensors="pt").to(device)
             inputs = inputs.to(dtype=emotion_analysis_model.dtype)
